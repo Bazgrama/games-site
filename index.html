@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Сайт с мини-играми</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      height: 100vh;
+    }
+    #menu {
+      width: 200px;
+      background: #333;
+      color: #fff;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    #menu h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    #menu button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #444;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #menu button:hover {
+      background: #555;
+    }
+    #game-area {
+      flex: 1;
+      padding: 20px;
+      overflow: auto;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+
+<div id="menu">
+  <h2>🎮 Игры</h2>
+  <button onclick="loadGame('snake')">🐍 Змейка</button>
+  <button onclick="loadGame('tic')">❌⭕ Крестики-нолики</button>
+  <button onclick="loadGame('memory')">🧠 Память</button>
+  <button onclick="loadGame('shoot')">🎯 Стрельба</button>
+</div>
+
+<div id="game-area">
+  <h2>Добро пожаловать!</h2>
+  <p>Выберите игру из меню слева, чтобы начать играть.</p>
+</div>
+
+<script>
+  function loadGame(game) {
+    const area = document.getElementById('game-area');
+    area.innerHTML = ''; // Очищаем
+
+    if (game === 'snake') {
+      area.innerHTML = '<h2>🐍 Змейка</h2><canvas id="snake" width="400" height="400"></canvas>';
+      runSnake();
+    }
+
+    if (game === 'tic') {
+      area.innerHTML = `
+        <h2>❌⭕ Крестики-нолики</h2>
+        <table style="border-collapse: collapse;">
+          ${[0,1,2].map(row => `<tr>${[0,1,2].map(col => `<td onclick="makeMove(${row}, ${col})" style="width:80px;height:80px;text-align:center;font-size:30px;border:1px solid #000;"> </td>`).join('')}</tr>`).join('')}
+        </table>
+        <p id="status"></p>
+      `;
+      currentPlayer = 'X';
+    }
+
+    if (game === 'memory') {
+      area.innerHTML = '<h2>🧠 Игра на память</h2><div id="memory"></div>';
+      runMemoryGame();
+    }
+
+    if (game === 'shoot') {
+      area.innerHTML = `
+        <h2>🎯 Стрельба</h2>
+        <canvas id="shoot" width="400" height="300"></canvas>
+        <p>Кликни по мишени, чтобы набрать очки!</p>
+        <p id="score">Очки: 0</p>
+      `;
+      runShootingGame();
+    }
+  }
+
+  // Snake game
+  function runSnake() {
+    const canvas = document.getElementById('snake');
+    const ctx = canvas.getContext('2d');
+    const box = 20;
+    let score = 0;
+
+    let snake = [{x: 9*box, y: 10*box}];
+    let food = {
+      x: Math.floor(Math.random()*19)*box,
+      y: Math.floor(Math.random()*19)*box
+    };
+    let dir;
+
+    document.addEventListener("keydown", direction);
+    function direction(e) {
+      if (e.key === "ArrowLeft" && dir !== "RIGHT") dir = "LEFT";
+      else if (e.key === "ArrowUp" && dir !== "DOWN") dir = "UP";
+      else if (e.key === "ArrowRight" && dir !== "LEFT") dir = "RIGHT";
+      else if (e.key === "ArrowDown" && dir !== "UP") dir = "DOWN";
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, 400, 400);
+
+      for(let i = 0; i < snake.length; i++) {
+        ctx.fillStyle = (i === 0) ? "green" : "lightgreen";
+        ctx.fillRect(snake[i].x, snake[i].y, box, box);
+      }
+
+      ctx.fillStyle = "red";
+      ctx.fillRect(food.x, food.y, box, box);
+
+      let headX = snake[0].x;
+      let headY = snake[0].y;
+
+      if(dir === "LEFT") headX -= box;
+      if(dir === "UP") headY -= box;
+      if(dir === "RIGHT") headX += box;
+      if(dir === "DOWN") headY += box;
+
+      if(headX === food.x && headY === food.y){
+        score++;
+        food = {
+          x: Math.floor(Math.random()*19)*box,
+          y: Math.floor(Math.random()*19)*box
+        };
+      } else {
+        snake.pop();
+      }
+
+      const newHead = {x: headX, y: headY};
+
+      if(headX < 0 || headY < 0 || headX >= 400 || headY >= 400 || collision(newHead, snake)) {
+        clearInterval(game);
+        alert("Игра окончена! Очки: " + score);
+        return;
+      }
+
+      snake.unshift(newHead);
+    }
+
+    function collision(head, array){
+      for(let i = 0; i < array.length; i++){
+        if(head.x === array[i].x && head.y === array[i].y){
+          return true;
+        }
+      }
+      return false;
+    }
+
+    const game = setInterval(draw, 100);
+  }
+
+  // Tic Tac Toe
+  let currentPlayer = 'X';
+  function makeMove(row, col) {
+    const cell = document.querySelectorAll("table tr")[row].children[col];
+    if (cell.textContent !== ' ') return;
+    cell.textContent = currentPlayer;
+    if (checkWin()) {
+      document.getElementById('status').textContent = `Победил ${currentPlayer}!`;
+      return;
+    }
+    currentPlayer = (currentPlayer === 'X') ? 'O' : 'X';
+  }
+
+  function checkWin() {
+    const cells = [...document.querySelectorAll("td")].map(td => td.textContent);
+    const wins = [
+      [0,1,2], [3,4,5], [6,7,8],
+      [0,3,6], [1,4,7], [2,5,8],
+      [0,4,8], [2,4,6]
+    ];
+    return wins.some(w => cells[w[0]] !== ' ' && cells[w[0]] === cells[w[1]] && cells[w[1]] === cells[w[2]]);
+  }
+
+  // Memory Game
+  function runMemoryGame() {
+    const symbols = ['🍎','🍌','🍇','🍒','🍉','🍓'];
+    const cards = [...symbols, ...symbols].sort(() => 0.5 - Math.random());
+    const memory = document.getElementById('memory');
+    let first = null;
+    cards.forEach(sym => {
+      const div = document.createElement('div');
+      div.textContent = '❓';
+      div.style.cssText = 'display:inline-block;width:60px;height:60px;font-size:30px;text-align:center;border:1px solid #000;margin:5px;line-height:60px;cursor:pointer;';
+      div.dataset.symbol = sym;
+      div.onclick = function() {
+        if (div.textContent !== '❓' || first === div) return;
+        div.textContent = sym;
+        if (!first) {
+          first = div;
+        } else {
+          if (first.dataset.symbol === sym) {
+            first = null;
+          } else {
+            setTimeout(() => {
+              div.textContent = '❓';
+              first.textContent = '❓';
+              first = null;
+            }, 1000);
+          }
+        }
+      };
+      memory.appendChild(div);
+    });
+  }
+
+  // Shooting game
+  function runShootingGame() {
+    const canvas = document.getElementById('shoot');
+    const ctx = canvas.getContext('2d');
+    let target = {x: 100, y: 100, r: 20};
+    let score = 0;
+
+    function drawTarget() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, target.r, 0, Math.PI*2);
+      ctx.fillStyle = "red";
+      ctx.fill();
+    }
+
+    canvas.onclick = function(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const dx = x - target.x;
+      const dy = y - target.y;
+      if (Math.sqrt(dx*dx + dy*dy) < target.r) {
+        score++;
+        document.getElementById("score").textContent = "Очки: " + score;
+        target.x = Math.random() * (canvas.width - 40) + 20;
+        target.y = Math.random() * (canvas.height - 40) + 20;
+        drawTarget();
+      }
+    };
+
+    drawTarget();
+  }
+</script>
+
+</body>
+</html>
